@@ -1,33 +1,44 @@
 pipeline {
     agent any
-
     tools {
-        // Install the Maven version configured as "M3" and add it to the path.
         maven "m3"
     }
-
     stages {
-        stage('Build') {
+        stage('checkout scm') {
             steps {
-                // Get some code from a GitHub repository
-                git 'https://github.com/jglick/simple-maven-project-with-tests.git'
-
-                // Run Maven on a Unix agent.
-                sh "mvn -Dmaven.test.failure.ignore=true clean package"
-
-                // To run Maven on a Windows agent, use
-                // bat "mvn -Dmaven.test.failure.ignore=true clean package"
+                git branch: 'main', url: 'https://github.com/Yash-Yaadav/chatapp-jenkis.git'
             }
-
-            post {
-                // If Maven was able to run the tests, even if some of the test
-                // failed, record the test results and archive the jar file.
-                success {
-                    junit '**/target/surefire-reports/TEST-*.xml'
-                    archiveArtifacts 'target/*.jar'
-                }
+        }   
+        stage('mvn build'){
+            steps {
+                sh "mvn -Dmaven.test.failure.ignore=true clean package"
             }
         }
+        stage('mvn test'){
+            steps {
+                sh "mvn test"
+            }
+        }
+        stage('test report'){
+            steps {
+                junit 'target/surefire-reports/*.xml'
+            }
+        }
+        stage('check style'){
+            steps {
+                sh 'mvn checkstyle:checkstyle'
+            }
+        }
+        stage('check style view'){
+            steps {
+                recordIssues(tools: [checkStyle(pattern: 'target/checkstyle-result.xml')])
+            }
+        }
+        stage('ansible prov'){
+            steps {
+               ansiblePlaybook credentialsId: 'root', inventory: 'dev.inv', playbook: 'tomcat.yml'
+            }
+        }
+         
     }
 }
-
