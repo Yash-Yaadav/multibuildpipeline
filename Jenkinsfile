@@ -1,33 +1,41 @@
 pipeline {
-    agent any
-
+        environment {
+        registry = "52.255.179.237:8085/yash059/chatappnormal"
+        registryCredential = 'nexus cre'
+        dockerImage = ''
+    }
+    agent any 
+    // agent is where my pipeline will be eexecuted
     tools {
-        // Install the Maven version configured as "M3" and add it to the path.
+        //install the maven version configured as m2 and add it to the path
         maven "m3"
     }
-
     stages {
-        stage('Build') {
+        stage('pull from scm') {
             steps {
-                // Get some code from a GitHub repository
-                git 'https://github.com/jglick/simple-maven-project-with-tests.git'
-
-                // Run Maven on a Unix agent.
-                sh "mvn -Dmaven.test.failure.ignore=true clean package"
-
-                // To run Maven on a Windows agent, use
-                // bat "mvn -Dmaven.test.failure.ignore=true clean package"
+            git credentialsId: 'gittoken', url: 'https://github.com/gopal1409/springchat1.git'
             }
-
-            post {
-                // If Maven was able to run the tests, even if some of the test
-                // failed, record the test results and archive the jar file.
-                success {
-                    junit '**/target/surefire-reports/TEST-*.xml'
-                    archiveArtifacts 'target/*.jar'
+        }
+                 stage('build it') {
+            steps {
+            sh 'mvn clean package'
+            }
+        }
+        stage('docker image') {
+            steps {
+                script {
+                  dockerImage=docker.build registry + ":$BUILD_NUMBER"
+                }
+            }
+        }
+        stage('docker push') {
+            steps {
+                script {
+                  docker.withRegistry('http://52.255.179.237:8085',registryCredential) {
+                      dockerImage.push()
+                  }
                 }
             }
         }
     }
 }
-
